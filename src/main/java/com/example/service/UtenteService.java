@@ -15,9 +15,9 @@ public interface UtenteService {
 
     public Uni<Utente> getUtente(String userKey);
     public Uni<UtenteHttp> getUtenteHttp(String userKey);
-    public Uni<List<Utente>> getAllUtenti(Pageable pageable) throws NoSuchObjectException;
-    public void creaUtente(String userKey, int idSede);
-    public void updateUtente(String userKey, UtenteRequest utenteRequest);
+    public Uni<List<UtenteDTO>> getAllUtenti(Pageable pageable) throws NoSuchObjectException;
+    public Uni<Void> creaUtente(String userKey, int idSede);
+    public Uni<Void> updateUtente(String userKey, UtenteRequest utenteRequest);
     public Uni<UtenteDTO> currentUtente(UtenteHttp utenteHttp);
-    public void deleteUtente(String userKey);
+    public Uni<Void> deleteUtente(String userKey);
 }

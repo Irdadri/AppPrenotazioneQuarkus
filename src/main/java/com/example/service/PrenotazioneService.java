@@ -15,7 +15,7 @@ import java.util.List;
 public interface PrenotazioneService {
 
 
-    Multi<PrenotazioneDTO> getAllPrenotazioniWithPaging(String userKey, Pageable pageable);
+    Uni<List<PrenotazioneDTO>> getAllPrenotazioniWithPaging(String userKey, Pageable pageable);
 
 
     Uni<List<PrenotazioneDTO>> getAllPrenotazioniByFilter(PrenotazioniFiltro prenotazioniFiltro, Pageable pageable);

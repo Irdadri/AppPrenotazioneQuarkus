@@ -1,7 +1,8 @@
 package com.example.repository;
 
 import com.example.entity.Postazione;
-import io.quarkus.hibernate.orm.panache.PanacheRepository;
+
+import io.quarkus.hibernate.reactive.panache.PanacheRepository;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 
