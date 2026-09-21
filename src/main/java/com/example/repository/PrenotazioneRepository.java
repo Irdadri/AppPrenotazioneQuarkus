@@ -22,9 +22,9 @@ public class PrenotazioneRepository implements PanacheRepository<Prenotazione> {
     }
 
 
-    public Uni<List<Prenotazione>> findPrenotazioneByUtente(Utente utente, Pageable pageable){
+    public Uni<List<Prenotazione>> findPrenotazioneByUtente(Utente utente, Page page){
         return find("utente", utente)
-                .page(Page.ofSize(pageable.getNumberOfPages()))
+                .page(page)
                 .nextPage()
                 .list();
     }
@@ -35,9 +35,9 @@ public class PrenotazioneRepository implements PanacheRepository<Prenotazione> {
                 .firstResult();
     }
 
-    public Uni<List<Prenotazione>> findAll(Pageable pageable){
+    public Uni<List<Prenotazione>> findAll(Page page){
         return findAll()
-                .page(Page.ofSize(pageable.getNumberOfPages()))
+                .page(page)
                 .nextPage()
                 .list();
     }

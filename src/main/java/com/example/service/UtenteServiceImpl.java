@@ -8,8 +8,10 @@ import com.example.dto.UtenteRequest;
 import com.example.entity.Utente;
 import com.example.repository.SedeRepository;
 import com.example.repository.UtenteRepository;
+import io.quarkus.panache.common.Page;
 import io.smallrye.mutiny.Uni;
 import jakarta.inject.Inject;
+import jakarta.ws.rs.NotFoundException;
 import org.modelmapper.ModelMapper;
 
 import java.awt.print.Pageable;
@@ -42,8 +44,8 @@ public class UtenteServiceImpl implements UtenteService{
     }
 
     @Override
-    public Uni<List<UtenteDTO>> getAllUtenti(Pageable pageable) throws NoSuchObjectException {
-        return repository.findAll(pageable)
+    public Uni<List<UtenteDTO>> getAllUtenti(int page, int size) {
+        return repository.findAll(Page.of(page, size))
                 .chain(listaUtenti -> {
                     // 1. Mappiamo ogni utente in un Uni<UtenteDTO>
                     List<Uni<UtenteDTO>> uniDTOs = listaUtenti.stream()
@@ -112,12 +114,8 @@ public class UtenteServiceImpl implements UtenteService{
     @Override
     public Uni<Void> deleteUtente(String userKey) {
         return repository.findUtenteByUserKey(userKey)
-                .chain(utente -> {
-                    if (utente == null) {
-                        return Uni.createFrom()
-                                .failure(new RuntimeException("Utente non trovato: " + userKey));
-                    }
-                    return repository.delete(utente).replaceWithVoid();
-                });
+                .onItem().ifNull()
+                .failWith(() -> new NotFoundException("utente non trovato"))
+                .chain(repository::delete);
     }
 }

@@ -15,7 +15,7 @@ import java.util.List;
 public interface PrenotazioneService {
 
 
-    Uni<List<PrenotazioneDTO>> getAllPrenotazioniWithPaging(String userKey, Pageable pageable);
+    Uni<List<PrenotazioneDTO>> getAllPrenotazioniWithPaging(String userKey, int page, int size);
 
 
     Uni<List<PrenotazioneDTO>> getAllPrenotazioniByFilter(PrenotazioniFiltro prenotazioniFiltro, Pageable pageable);
@@ -29,7 +29,7 @@ public interface PrenotazioneService {
 
     Uni<PrenotazioneDTO> aggiornaPrenotazione(PrenotazioneRequest prenotazioneRequest, int id);
 
-    void deletePrenotazioneById(int id);
+    Uni<Void> deletePrenotazioneById(int id);
 
 
 }

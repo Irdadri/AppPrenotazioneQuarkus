@@ -1,8 +1,9 @@
 package com.example.controller;
 
 import com.example.client.UtenteClient;
-import com.example.dto.PrenotazioneDTO;
-import com.example.dto.UtenteRequest;
+import com.example.dto.*;
+import com.example.entity.Sede;
+import com.example.entity.TipoUtenteEnum;
 import com.example.service.PrenotazioneService;
 import com.example.service.SedeService;
 import com.example.service.UtenteService;
@@ -11,6 +12,8 @@ import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import org.modelmapper.ModelMapper;
+
+import java.util.List;
 
 @Path("/dashboard")
 @Produces(MediaType.APPLICATION_JSON)
@@ -30,49 +33,57 @@ public class DashboardController {
 
     @GET
     @Path("/prenotazione")
-    public PrenotazioneDTO currentPrenotazione(
-            @QueryParam("idPrenotazione") Integer idPrenotazione) {
-        return null;
+    public Uni<PrenotazioneDTO> currentPrenotazione(
+            @QueryParam("idPrenotazione") int idPrenotazione) {
+        return prenotazioneService.getPrenotazioneById(idPrenotazione)
+                .onFailure().transform(e -> new NotFoundException("prenotazione non trovata"));
     }
 
     @POST
     @Path("/prenotazione")
-    public PrenotazioneDTO creaPrenotazione(
+    public Uni<PrenotazioneDTO> creaPrenotazione(
             @QueryParam("userKey") String userKey,
             PrenotazioneRequest request) {
-        return null;
+        return prenotazioneService.insertPrenotazione(request, userKey)
+                .onFailure().transform(e -> new IllegalArgumentException());
     }
 
     @PUT
     @Path("/aggiornaPrenotazione")
-    public void updatePrenotazione(
+    public Uni<PrenotazioneDTO> updatePrenotazione(
             @QueryParam("idPrenotazione") Integer idPrenotazione,
             PrenotazioneRequest request) {
+        return prenotazioneService.aggiornaPrenotazione(request, idPrenotazione);
     }
 
     @DELETE
     @Path("/delete/{id}")
-    public void deletePrenotazione(
+    public Uni<Void> deletePrenotazione(
             @PathParam("id") Integer id) {
+        return prenotazioneService.deletePrenotazioneById(id)
+                .onFailure().transform(e -> new NotFoundException("prenotazione non trovata"));
     }
 
     @GET
     @Path("/")
-    public Page<PrenotazioneDTO> getDashboard(
+    public Uni<List<PrenotazioneDTO>> getDashboard(
             @QueryParam("userKey") String userKey,
             @QueryParam("page") @DefaultValue("0") Integer page,
             @QueryParam("size") @DefaultValue("5") Integer size) {
-        return null;
+        return prenotazioneService.getAllPrenotazioniWithPaging(userKey, page, size);
     }
 
+    /*
     @POST
     @Path("/searchPrenotazioni")
-    public Page<PrenotazioneDTO> searchPrenotazioni(
+    public Uni<List<PrenotazioneDTO>> searchPrenotazioni(
             @QueryParam("page") @DefaultValue("0") Integer page,
             @QueryParam("size") @DefaultValue("5") Integer size,
             PrenotazioniFiltro filtro) {
         return null;
     }
+
+
 
     @POST
     @Path("/searchPrenotazioniUtente")
@@ -84,37 +95,46 @@ public class DashboardController {
         return null;
     }
 
+     */
 
-    // =========================
-    // UTENTI
-    // =========================
 
     @GET
     @Path("/utente")
-    public UtenteDTO currentUtente(
+    public Uni<UtenteDTO> currentUtente(
             @QueryParam("userKey") String userKey) {
-        return null;
+        return client.getCurrentUtente(userKey)
+                .chain(utenteHttp -> {
+                    return utenteService.currentUtente(utenteHttp);
+                });
     }
 
     @GET
     @Path("/utenti")
-    public Page<UtenteDTO> getUtenti(
+    public Uni<List<UtenteDTO>> getUtenti(
             @QueryParam("page") @DefaultValue("0") Integer page,
             @QueryParam("size") @DefaultValue("5") Integer size) {
-        return null;
+        return utenteService.getAllUtenti(page, size);
     }
 
     @PUT
     @Path("/aggiornaUtente")
-    public void updateUtente(
+    public Uni<Void> updateUtente(
             @QueryParam("userKey") String userKey,
             UtenteRequest request) {
+        return client.updateUtente(userKey, request)
+                .chain(key -> {
+                    return utenteService.updateUtente(key, request);
+                });
     }
 
     @POST
     @Path("/signup")
-    public void creaUtente(
+    public Uni<Void> creaUtente(
             UtenteRequest request) {
+        return client.creaUtente(request)
+                .chain(userkey -> {
+                    return utenteService.creaUtente(userkey, request.getIdSede());
+                });
     }
 
     @DELETE
@@ -125,5 +145,18 @@ public class DashboardController {
         return client.deleteUtente(userKey)
                 .onFailure()
                 .transform(e -> new NotFoundException("utente non trovato"));
+    }
+
+
+    @GET
+    @Path("/listaSedi")
+    public Uni<List<Sede>> getListaSedi(){
+        return sedeService.getAllSedi();
+    }
+
+    @GET
+    @Path("/listaRuoli")
+    public TipoUtenteEnum[] getRuoliUtente(){
+        return TipoUtenteEnum.values();
     }
 }

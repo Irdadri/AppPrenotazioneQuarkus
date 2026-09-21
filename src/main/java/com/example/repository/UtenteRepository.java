@@ -14,8 +14,8 @@ public class UtenteRepository implements PanacheRepository<Utente> {
         return find("userKey", userKey).firstResult();
     }
 
-    public Uni<List<Utente>> findAll(Pageable pageable){
-        return findAll().page(Page.ofSize(pageable.getNumberOfPages()))
+    public Uni<List<Utente>> findAll(Page page){
+        return findAll().page(page)
                 .nextPage()
                 .list();
     }

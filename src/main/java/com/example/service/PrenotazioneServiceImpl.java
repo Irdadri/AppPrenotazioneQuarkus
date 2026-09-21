@@ -7,6 +7,7 @@ import com.example.entity.TipoUtenteEnum;
 import com.example.repository.PostazioneRepository;
 import com.example.repository.PrenotazioneRepository;
 import com.example.repository.UtenteRepository;
+import io.quarkus.panache.common.Page;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.infrastructure.Infrastructure;
@@ -14,6 +15,7 @@ import io.smallrye.reactive.messaging.annotations.Channel;
 import io.smallrye.reactive.messaging.annotations.Emitter;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import jakarta.ws.rs.NotFoundException;
 import org.jboss.resteasy.reactive.ResponseStatus;
 import org.modelmapper.ModelMapper;
 
@@ -48,7 +50,8 @@ public class PrenotazioneServiceImpl implements PrenotazioneService {
     @Override
     public Uni<List<PrenotazioneDTO>> getAllPrenotazioniWithPaging(
             String userKey,
-            Pageable pageable) {
+            int page,
+            int size) {
 
         return client.getCurrentUtente(userKey)
                 .chain(utenteHttp -> utenteRepository.findUtenteByUserKey(userKey)
@@ -56,9 +59,9 @@ public class PrenotazioneServiceImpl implements PrenotazioneService {
 
                             Uni<List<Prenotazione>> listaUni;
                             if (utenteHttp.getTipoUtente().equals(TipoUtenteEnum.user.name())) {
-                                listaUni = repository.findPrenotazioneByUtente(utente, pageable);
+                                listaUni = repository.findPrenotazioneByUtente(utente, Page.of(page, size));
                             } else {
-                                listaUni = repository.findAll(pageable);
+                                listaUni = repository.findAll(Page.of(page, size));
                             }
 
 
@@ -111,7 +114,7 @@ public class PrenotazioneServiceImpl implements PrenotazioneService {
                             return prenotazione;
                         })
                 )
-                .chain(prenotazione -> repository.persist(prenotazione))
+                .chain(repository::persist)
                 .chain(prenotazioneSalvata ->
                         client.getCurrentUtente(userKey)
                                 .map(utenteHttp -> {
@@ -163,17 +166,16 @@ public class PrenotazioneServiceImpl implements PrenotazioneService {
                             }
                             return prenotazione;
                         }))
-                .chain(prenotazione -> repository.persist(prenotazione))
+                .chain(repository::persist)
                 .map(prenotazione -> modelMapper.map(prenotazione, PrenotazioneDTO.class));
 
     }
 
     @Override
-    public void deletePrenotazioneById(int id) {
-        repository.findById((long) id)
-                .onItem().ifNull().failWith(new IllegalArgumentException("prenotazione non trovata"))
-                .chain(prenotazione -> repository.delete(prenotazione));
+    public Uni<Void> deletePrenotazioneById(int id) {
+        return repository.findById((long) id)
+                .onItem().ifNull().failWith(new NotFoundException("prenotazione non trovata"))
+                .chain(repository::delete);
     }
-
 
 }
