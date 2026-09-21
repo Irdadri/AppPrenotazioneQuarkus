@@ -7,7 +7,9 @@ import com.example.entity.TipoUtenteEnum;
 import com.example.service.PrenotazioneService;
 import com.example.service.SedeService;
 import com.example.service.UtenteService;
+import io.quarkus.security.Authenticated;
 import io.smallrye.mutiny.Uni;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -18,6 +20,7 @@ import java.util.List;
 @Path("/dashboard")
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
+@Authenticated
 public class DashboardController {
 
     @Inject
@@ -30,6 +33,7 @@ public class DashboardController {
     public ModelMapper modelMapper;
     @Inject
     public UtenteClient client;
+
 
     @GET
     @Path("/prenotazione")
@@ -110,6 +114,7 @@ public class DashboardController {
 
     @GET
     @Path("/utenti")
+    @RolesAllowed("ROLE_manager")
     public Uni<List<UtenteDTO>> getUtenti(
             @QueryParam("page") @DefaultValue("0") Integer page,
             @QueryParam("size") @DefaultValue("5") Integer size) {
@@ -118,6 +123,7 @@ public class DashboardController {
 
     @PUT
     @Path("/aggiornaUtente")
+    @RolesAllowed("ROLE_manager")
     public Uni<Void> updateUtente(
             @QueryParam("userKey") String userKey,
             UtenteRequest request) {
@@ -129,6 +135,7 @@ public class DashboardController {
 
     @POST
     @Path("/signup")
+    @RolesAllowed("ROLE_manager")
     public Uni<Void> creaUtente(
             UtenteRequest request) {
         return client.creaUtente(request)
@@ -139,6 +146,7 @@ public class DashboardController {
 
     @DELETE
     @Path("/deleteUser")
+    @RolesAllowed("ROLE_manager")
     public Uni<Void> deleteUtente(
             @QueryParam("userKey") String userKey) {
 
@@ -146,7 +154,6 @@ public class DashboardController {
                 .onFailure()
                 .transform(e -> new NotFoundException("utente non trovato"));
     }
-
 
     @GET
     @Path("/listaSedi")
