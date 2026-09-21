@@ -113,10 +113,11 @@ public class UtenteServiceImpl implements UtenteService{
     public Uni<Void> deleteUtente(String userKey) {
         return repository.findUtenteByUserKey(userKey)
                 .chain(utente -> {
-                    if (utente != null) {
-                        return repository.delete(utente).replaceWithVoid();
+                    if (utente == null) {
+                        return Uni.createFrom()
+                                .failure(new RuntimeException("Utente non trovato: " + userKey));
                     }
-                    return Uni.createFrom().voidItem();
+                    return repository.delete(utente).replaceWithVoid();
                 });
     }
 }
