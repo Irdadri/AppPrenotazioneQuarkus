@@ -9,6 +9,7 @@ import com.example.service.SedeService;
 import com.example.service.UtenteService;
 import io.quarkus.security.Authenticated;
 import io.smallrye.mutiny.Uni;
+import jakarta.annotation.security.PermitAll;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
@@ -19,7 +20,7 @@ import org.modelmapper.ModelMapper;
 import java.util.List;
 
 @Path("/dashboard")
-//@Authenticated
+
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 public class DashboardController {
@@ -39,6 +40,7 @@ public class DashboardController {
 
     @GET
     @Path("/prenotazione")
+    @Authenticated
     public Uni<PrenotazioneDTO> currentPrenotazione(
             @QueryParam("idPrenotazione") int idPrenotazione) {
         return prenotazioneService.getPrenotazioneById(idPrenotazione)
@@ -47,6 +49,7 @@ public class DashboardController {
 
     @POST
     @Path("/prenotazione")
+    @Authenticated
     public Uni<PrenotazioneDTO> creaPrenotazione(
             @QueryParam("userKey") String userKey,
             PrenotazioneRequest request) {
@@ -56,6 +59,7 @@ public class DashboardController {
 
     @PUT
     @Path("/aggiornaPrenotazione")
+    @Authenticated
     public Uni<PrenotazioneDTO> updatePrenotazione(
             @QueryParam("idPrenotazione") Integer idPrenotazione,
             PrenotazioneRequest request) {
@@ -64,6 +68,7 @@ public class DashboardController {
 
     @DELETE
     @Path("/delete/{id}")
+    @Authenticated
     public Uni<Void> deletePrenotazione(
             @PathParam("id") Integer id) {
         return prenotazioneService.deletePrenotazioneById(id)
@@ -72,6 +77,7 @@ public class DashboardController {
 
     @GET
     @Path("/")
+    @Authenticated
     public Uni<List<PrenotazioneDTO>> getDashboard(
             @QueryParam("userKey") String userKey,
             @QueryParam("page") @DefaultValue("0") Integer page,
@@ -106,6 +112,7 @@ public class DashboardController {
 
     @GET
     @Path("/utente")
+    @Authenticated
     public Uni<UtenteDTO> currentUtente(
             @QueryParam("userKey") String userKey) {
         return client.getCurrentUtente(userKey)
@@ -116,7 +123,7 @@ public class DashboardController {
 
     @GET
     @Path("/utenti")
-    //@RolesAllowed("ROLE_manager")
+    @RolesAllowed("ROLE_manager")
     public Uni<List<UtenteDTO>> getUtenti(
             @QueryParam("page") @DefaultValue("0") Integer page,
             @QueryParam("size") @DefaultValue("5") Integer size) {
@@ -125,7 +132,7 @@ public class DashboardController {
 
     @PUT
     @Path("/aggiornaUtente")
-    //@RolesAllowed("ROLE_manager")
+    @RolesAllowed("ROLE_manager")
     public Uni<Void> updateUtente(
             @QueryParam("userKey") String userKey,
             UtenteRequest request) {
@@ -137,7 +144,7 @@ public class DashboardController {
 
     @POST
     @Path("/signup")
-    //@RolesAllowed("ROLE_manager")
+    @RolesAllowed("ROLE_manager")
     public Uni<Void> creaUtente(
             UtenteRequest request) {
         return client.creaUtente(request)
@@ -148,7 +155,7 @@ public class DashboardController {
 
     @DELETE
     @Path("/deleteUser")
-    //@RolesAllowed("ROLE_manager")
+    @RolesAllowed("ROLE_manager")
     public Uni<Void> deleteUtente(
             @QueryParam("userKey") String userKey) {
 
