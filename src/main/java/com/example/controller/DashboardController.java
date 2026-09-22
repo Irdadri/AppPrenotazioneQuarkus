@@ -13,14 +13,15 @@ import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
+import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.modelmapper.ModelMapper;
 
 import java.util.List;
 
 @Path("/dashboard")
+//@Authenticated
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
-@Authenticated
 public class DashboardController {
 
     @Inject
@@ -32,6 +33,7 @@ public class DashboardController {
     @Inject
     public ModelMapper modelMapper;
     @Inject
+    @RestClient
     public UtenteClient client;
 
 
@@ -114,7 +116,7 @@ public class DashboardController {
 
     @GET
     @Path("/utenti")
-    @RolesAllowed("ROLE_manager")
+    //@RolesAllowed("ROLE_manager")
     public Uni<List<UtenteDTO>> getUtenti(
             @QueryParam("page") @DefaultValue("0") Integer page,
             @QueryParam("size") @DefaultValue("5") Integer size) {
@@ -123,7 +125,7 @@ public class DashboardController {
 
     @PUT
     @Path("/aggiornaUtente")
-    @RolesAllowed("ROLE_manager")
+    //@RolesAllowed("ROLE_manager")
     public Uni<Void> updateUtente(
             @QueryParam("userKey") String userKey,
             UtenteRequest request) {
@@ -135,7 +137,7 @@ public class DashboardController {
 
     @POST
     @Path("/signup")
-    @RolesAllowed("ROLE_manager")
+    //@RolesAllowed("ROLE_manager")
     public Uni<Void> creaUtente(
             UtenteRequest request) {
         return client.creaUtente(request)
@@ -146,7 +148,7 @@ public class DashboardController {
 
     @DELETE
     @Path("/deleteUser")
-    @RolesAllowed("ROLE_manager")
+    //@RolesAllowed("ROLE_manager")
     public Uni<Void> deleteUtente(
             @QueryParam("userKey") String userKey) {
 

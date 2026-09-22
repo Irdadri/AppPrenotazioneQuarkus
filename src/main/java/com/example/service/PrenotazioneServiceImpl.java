@@ -7,6 +7,8 @@ import com.example.entity.TipoUtenteEnum;
 import com.example.repository.PostazioneRepository;
 import com.example.repository.PrenotazioneRepository;
 import com.example.repository.UtenteRepository;
+import io.quarkus.hibernate.reactive.panache.common.WithSession;
+import io.quarkus.hibernate.reactive.panache.common.WithTransaction;
 import io.quarkus.panache.common.Page;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
@@ -16,6 +18,7 @@ import io.smallrye.reactive.messaging.annotations.Emitter;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.NotFoundException;
+import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.jboss.resteasy.reactive.ResponseStatus;
 import org.modelmapper.ModelMapper;
 
@@ -40,6 +43,7 @@ public class PrenotazioneServiceImpl implements PrenotazioneService {
     public PostazioneRepository postazioneRepository;
 
     @Inject
+    @RestClient
     public UtenteClient client;
 
     @Inject
@@ -47,6 +51,7 @@ public class PrenotazioneServiceImpl implements PrenotazioneService {
     Emitter<KafkaMessage> emitter;
 
 
+    @WithSession
     @Override
     public Uni<List<PrenotazioneDTO>> getAllPrenotazioniWithPaging(
             String userKey,
@@ -98,6 +103,7 @@ public class PrenotazioneServiceImpl implements PrenotazioneService {
         return null;
     }
 
+    @WithTransaction
     @Override
     public Uni<PrenotazioneDTO> insertPrenotazione(PrenotazioneRequest request, String userKey) {
         return utenteRepository.findUtenteByUserKey(userKey)
@@ -139,6 +145,7 @@ public class PrenotazioneServiceImpl implements PrenotazioneService {
                 );
     }
 
+    @WithSession
     @Override
     public Uni<PrenotazioneDTO> getPrenotazioneById(int id) {
         return repository.findById((long) id)
@@ -154,6 +161,7 @@ public class PrenotazioneServiceImpl implements PrenotazioneService {
                 );
     }
 
+    @WithTransaction
     @Override
     public Uni<PrenotazioneDTO> aggiornaPrenotazione(PrenotazioneRequest prenotazioneRequest, int id) {
         return repository.findById((long) id)
@@ -171,6 +179,7 @@ public class PrenotazioneServiceImpl implements PrenotazioneService {
 
     }
 
+    @WithTransaction
     @Override
     public Uni<Void> deletePrenotazioneById(int id) {
         return repository.findById((long) id)

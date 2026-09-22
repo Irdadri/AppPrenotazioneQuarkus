@@ -3,6 +3,7 @@ package com.example.client;
 import com.example.dto.UtenteHttp;
 import com.example.dto.UtenteRequest;
 import io.quarkus.panache.common.Page;
+import io.quarkus.rest.client.reactive.ClientBasicAuth;
 import io.smallrye.mutiny.Uni;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
@@ -10,13 +11,14 @@ import org.eclipse.microprofile.rest.client.inject.RegisterRestClient;
 
 @Path("/")
 @RegisterRestClient(configKey = "utente-client")
+@ClientBasicAuth(username = "root", password = "password")
 @Consumes(MediaType.APPLICATION_JSON)
 @Produces(MediaType.APPLICATION_JSON)
 public interface UtenteClient {
 
     @GET
     @Path("/cerca/{email}")
-    Uni<UtenteHttp> getHttpUser(@PathParam("email") String email, @HeaderParam("Authorization") String basicAuth);
+    Uni<UtenteHttp> getHttpUser(@PathParam("email") String email);
 
     @POST
     @Path("/currentUtente")

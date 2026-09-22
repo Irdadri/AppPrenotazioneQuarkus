@@ -7,10 +7,12 @@ import com.example.entity.Utente;
 import io.quarkus.panache.common.Page;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
+import jakarta.enterprise.context.ApplicationScoped;
 
 import java.awt.print.Pageable;
 import java.rmi.NoSuchObjectException;
 import java.util.List;
+
 
 public interface UtenteService {
 

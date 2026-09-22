@@ -8,10 +8,14 @@ import com.example.dto.UtenteRequest;
 import com.example.entity.Utente;
 import com.example.repository.SedeRepository;
 import com.example.repository.UtenteRepository;
+import io.quarkus.hibernate.reactive.panache.common.WithSession;
+import io.quarkus.hibernate.reactive.panache.common.WithTransaction;
 import io.quarkus.panache.common.Page;
 import io.smallrye.mutiny.Uni;
+import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.NotFoundException;
+import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.modelmapper.ModelMapper;
 
 import java.awt.print.Pageable;
@@ -19,6 +23,7 @@ import java.rmi.NoSuchObjectException;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@ApplicationScoped
 public class UtenteServiceImpl implements UtenteService{
     @Inject
     public UtenteRepository repository;
@@ -30,9 +35,11 @@ public class UtenteServiceImpl implements UtenteService{
     public SedeRepository sedeRepository;
 
     @Inject
+    @RestClient
     public UtenteClient client;
 
 
+    @WithSession
     @Override
     public Uni<Utente> getUtente(String userKey) {
         return repository.findUtenteByUserKey(userKey);
@@ -43,6 +50,7 @@ public class UtenteServiceImpl implements UtenteService{
         return client.getCurrentUtente(userKey);
     }
 
+    @WithSession
     @Override
     public Uni<List<UtenteDTO>> getAllUtenti(int page, int size) {
         return repository.findAll(Page.of(page, size))
@@ -68,6 +76,7 @@ public class UtenteServiceImpl implements UtenteService{
                 });
     }
 
+    @WithTransaction
     @Override
     public Uni<Void> creaUtente(String userKey, int idSede) {
         return sedeRepository.findSedeById(idSede)
@@ -80,6 +89,7 @@ public class UtenteServiceImpl implements UtenteService{
 
     }
 
+    @WithTransaction
     @Override
     public Uni<Void> updateUtente(String userKey, UtenteRequest utenteRequest) {
         return repository.findUtenteByUserKey(userKey).chain(utente -> {
@@ -98,6 +108,7 @@ public class UtenteServiceImpl implements UtenteService{
         });
     }
 
+    @WithTransaction
     @Override
     public Uni<UtenteDTO> currentUtente(UtenteHttp utenteHttp) {
         return repository.findUtenteByUserKey(utenteHttp.getUserKey())
@@ -111,6 +122,7 @@ public class UtenteServiceImpl implements UtenteService{
                 });
     }
 
+    @WithSession
     @Override
     public Uni<Void> deleteUtente(String userKey) {
         return repository.findUtenteByUserKey(userKey)

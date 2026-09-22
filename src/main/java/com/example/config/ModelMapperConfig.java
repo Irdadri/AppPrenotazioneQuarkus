@@ -8,7 +8,7 @@ import com.example.entity.TipoUtenteEnum;
 import com.example.entity.Utente;
 import io.quarkus.arc.DefaultBean;
 import jakarta.enterprise.context.ApplicationScoped;
-import jakarta.ws.rs.Produces;
+import jakarta.enterprise.inject.Produces;
 import org.modelmapper.AbstractConverter;
 import org.modelmapper.Converter;
 import org.modelmapper.ModelMapper;
