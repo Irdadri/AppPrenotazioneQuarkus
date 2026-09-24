@@ -1,6 +1,7 @@
 package com.example.service;
 
 
+import com.example.dto.PageResponse;
 import com.example.dto.PrenotazioneDTO;
 import com.example.dto.PrenotazioneRequest;
 import com.example.dto.PrenotazioniFiltro;
@@ -16,6 +17,8 @@ public interface PrenotazioneService {
 
 
     Uni<List<PrenotazioneDTO>> getAllPrenotazioniWithPaging(String userKey, int page, int size);
+
+    Uni<PageResponse<PrenotazioneDTO>> getPrenotazioniWithPaging(String userKey, int page, int size);
 
 
     Uni<List<PrenotazioneDTO>> getAllPrenotazioniByFilter(PrenotazioniFiltro prenotazioniFiltro, Pageable pageable);

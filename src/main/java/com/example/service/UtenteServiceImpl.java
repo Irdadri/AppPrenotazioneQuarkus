@@ -1,16 +1,16 @@
 package com.example.service;
 
 import com.example.client.UtenteClient;
-import com.example.dto.PrenotazioneDTO;
-import com.example.dto.UtenteDTO;
-import com.example.dto.UtenteHttp;
-import com.example.dto.UtenteRequest;
+import com.example.dto.*;
+import com.example.entity.Prenotazione;
 import com.example.entity.Utente;
 import com.example.repository.SedeRepository;
 import com.example.repository.UtenteRepository;
+import io.quarkus.hibernate.reactive.panache.PanacheQuery;
 import io.quarkus.hibernate.reactive.panache.common.WithSession;
 import io.quarkus.hibernate.reactive.panache.common.WithTransaction;
 import io.quarkus.panache.common.Page;
+import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -74,6 +74,66 @@ public class UtenteServiceImpl implements UtenteService{
 
                     return Uni.join().all(uniDTOs).andCollectFailures();
                 });
+    }
+
+    @Override
+    @WithSession
+    public Uni<PageResponse<UtenteDTO>> getUtentiPaged(int page, int size){
+
+        PanacheQuery<Utente> query = repository.findWithPaging(Page.of(page,size));
+
+        return query.list()
+                .onItem().transformToMulti(Multi.createFrom()::iterable)
+                .onItem()
+                .transformToUniAndConcatenate(
+                        utente ->
+                            client.getCurrentUtente(utente.getUserKey())
+                                    .chain(utenteHttp ->
+                                            sedeRepository.findSedeById(utente.getSede().getId())
+                                                    .onItem().transform(sede -> {
+                                                        UtenteDTO dto = modelMapper.map(utenteHttp, UtenteDTO.class);
+                                                        dto.setCitta(sede.getCitta());
+                                                        dto.setIndirizzo(sede.getIndirizzo());
+                                                        dto.setRegione(sede.getRegione());
+                                                        return dto;
+                                                    })
+                                    )
+
+                )
+                .collect()
+                .asList()
+                .chain(utenteList ->
+                    createPageResponse(utenteList, query, page, size)
+                );
+    }
+
+    private Uni<PageResponse<UtenteDTO>> createPageResponse(
+            List<UtenteDTO> content,
+            PanacheQuery<Utente> query,
+            int page,
+            int size) {
+
+        boolean hasPrevious = query.hasPreviousPage();
+
+        return query.hasNextPage()
+                .chain(hasNext ->
+                        query.count()
+                                .chain(totalElements ->
+                                        query.pageCount()
+                                                .onItem()
+                                                .transform(totalPages ->
+                                                        new PageResponse<>(
+                                                                content,
+                                                                hasNext,
+                                                                hasPrevious,
+                                                                totalElements,
+                                                                totalPages,
+                                                                page,
+                                                                size
+                                                        )
+                                                )
+                                )
+                );
     }
 
     @WithTransaction

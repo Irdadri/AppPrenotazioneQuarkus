@@ -1,6 +1,7 @@
 package com.example.repository;
 
 import com.example.entity.Utente;
+import io.quarkus.hibernate.reactive.panache.PanacheQuery;
 import io.quarkus.hibernate.reactive.panache.PanacheRepository;
 import io.quarkus.panache.common.Page;
 import io.smallrye.mutiny.Uni;
@@ -20,5 +21,10 @@ public class UtenteRepository implements PanacheRepository<Utente> {
         return findAll().page(page)
                 .nextPage()
                 .list();
+    }
+
+    public PanacheQuery<Utente> findWithPaging(Page page){
+        return findAll()
+                .page(page);
     }
 }

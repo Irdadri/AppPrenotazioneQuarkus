@@ -7,6 +7,7 @@ import com.example.entity.TipoUtenteEnum;
 import com.example.repository.PostazioneRepository;
 import com.example.repository.PrenotazioneRepository;
 import com.example.repository.UtenteRepository;
+import io.quarkus.hibernate.reactive.panache.PanacheQuery;
 import io.quarkus.hibernate.reactive.panache.common.WithSession;
 import io.quarkus.hibernate.reactive.panache.common.WithTransaction;
 import io.quarkus.panache.common.Page;
@@ -69,7 +70,6 @@ public class PrenotazioneServiceImpl implements PrenotazioneService {
                                 listaUni = repository.findAll(Page.of(page, size));
                             }
 
-
                             return listaUni.chain(listaPrenotazione -> {
                                 if (listaPrenotazione == null || listaPrenotazione.isEmpty()) {
                                     return Uni.createFrom().item(List.of());
@@ -86,10 +86,102 @@ public class PrenotazioneServiceImpl implements PrenotazioneService {
                                         )
                                         .collect(Collectors.toList());
 
-
                                 return Uni.join().all(uniDtos).andCollectFailures();
                             });
                         })
+                );
+    }
+
+    @WithSession
+    @Override
+    public Uni<PageResponse<PrenotazioneDTO>> getPrenotazioniWithPaging(
+            String userKey, int page, int size) {
+
+        return client.getCurrentUtente(userKey)
+                .chain(utenteHttp ->
+                        utenteRepository.findUtenteByUserKey(userKey)
+                                .chain(utente -> {
+
+                                    PanacheQuery<Prenotazione> query;
+
+                                    if (utenteHttp.getTipoUtente()
+                                            .equals(TipoUtenteEnum.user.name())) {
+
+                                        query = repository.findPageUtente(
+                                                utente,
+                                                Page.of(page, size)
+                                        );
+                                    } else {
+                                        query = repository.findPage(
+                                                Page.of(page, size)
+                                        );
+                                    }
+
+                                    return query.list()
+
+                                            .onItem()
+                                            .transformToMulti(list ->
+                                                    Multi.createFrom().iterable(list)
+                                            )
+
+                                            .onItem()
+                                            .transformToUniAndMerge(prenotazione ->
+                                                    client.getCurrentUtente(
+                                                                    prenotazione.getUtente().getUserKey()
+                                                            )
+                                                            .onItem()
+                                                            .transform(temp -> {
+
+                                                                PrenotazioneDTO dto =
+                                                                        modelMapper.map(
+                                                                                prenotazione,
+                                                                                PrenotazioneDTO.class
+                                                                        );
+
+                                                                dto.setNomeUtente(temp.getNome());
+                                                                dto.setCognomeUtente(temp.getCognome());
+
+                                                                return dto;
+                                                            })
+                                            )
+
+                                            .collect()
+                                            .asList()
+                                            .chain(dtoList ->
+                                                    createPageResponse(dtoList, query, page, size)
+                                            );
+                                })
+
+                );
+    }
+
+
+    private Uni<PageResponse<PrenotazioneDTO>> createPageResponse(
+            List<PrenotazioneDTO> content,
+            PanacheQuery<Prenotazione> query,
+            int page,
+            int size) {
+
+        boolean hasPrevious = query.hasPreviousPage();
+
+        return query.hasNextPage()
+                .chain(hasNext ->
+                        query.count()
+                                .chain(totalElements ->
+                                        query.pageCount()
+                                                .onItem()
+                                                .transform(totalPages ->
+                                                        new PageResponse<>(
+                                                                content,
+                                                                hasNext,
+                                                                hasPrevious,
+                                                                totalElements,
+                                                                totalPages,
+                                                                page,
+                                                                size
+                                                        )
+                                                )
+                                )
                 );
     }
 
@@ -111,13 +203,14 @@ public class PrenotazioneServiceImpl implements PrenotazioneService {
                 .chain(utente -> postazioneRepository.findById(Long.parseLong(request.getNPostazione()))
                         .onItem().ifNull().failWith(() -> new IllegalArgumentException("Postazione non trovata"))
                         .onItem().transform(postazione -> {
-                            Prenotazione prenotazione = modelMapper.map(request, Prenotazione.class);
-                            prenotazione.setStato("prenotato");
-                            prenotazione.setPostazione(postazione);
-                            prenotazione.setUtente(utente);
-                            prenotazione.setDataFine(request.getDataInizio());
-                            prenotazione.setDataCreazione(LocalDateTime.now());
-                            return prenotazione;
+                            return Prenotazione.builder()
+                                    .dataInizio(request.getDataInizio())
+                                    .stato("prenotato")
+                                    .postazione(postazione)
+                                    .utente(utente)
+                                    .dataFine(request.getDataInizio())
+                                    .dataCreazione(LocalDateTime.now())
+                                    .build();
                         })
                 )
                 .chain(repository::persist)
@@ -125,21 +218,7 @@ public class PrenotazioneServiceImpl implements PrenotazioneService {
                         client.getCurrentUtente(userKey)
                                 .map(utenteHttp -> {
                                     PrenotazioneDTO dto = modelMapper.map(prenotazioneSalvata, PrenotazioneDTO.class);
-
-                                    KafkaMessage message = new KafkaMessage();
-                                    message.setTipoNotifica("EMAIL");
-                                    Map<String, String> temp = message.getProperties();
-                                    temp.put("citta", dto.getCitta());
-                                    temp.put("indirizzo", dto.getIndirizzo());
-                                    temp.put("nStanza", dto.getNStanza());
-                                    temp.put("nPostazione", String.valueOf(dto.getNPostazione()));
-                                    temp.put("dataInizio", String.valueOf(dto.getDataInizio()));
-                                    temp.put("dataFine", String.valueOf(dto.getDataFine()));
-                                    temp.put("nome utente", utenteHttp.getNome());
-                                    temp.put("email", utenteHttp.getEmail());
-
-                                    emitter.send(message);
-
+                                    kafkaSend(dto, utenteHttp);
                                     return dto;
                                 })
                 );
@@ -185,6 +264,23 @@ public class PrenotazioneServiceImpl implements PrenotazioneService {
         return repository.findById((long) id)
                 .onItem().ifNull().failWith(new NotFoundException("prenotazione non trovata"))
                 .chain(repository::delete);
+    }
+
+
+    public void kafkaSend(PrenotazioneDTO dto, UtenteHttp utenteHttp) {
+        KafkaMessage message = new KafkaMessage();
+        message.setTipoNotifica("EMAIL");
+        Map<String, String> temp = message.getProperties();
+        temp.put("citta", dto.getCitta());
+        temp.put("indirizzo", dto.getIndirizzo());
+        temp.put("nStanza", dto.getNStanza());
+        temp.put("nPostazione", String.valueOf(dto.getNPostazione()));
+        temp.put("dataInizio", String.valueOf(dto.getDataInizio()));
+        temp.put("dataFine", String.valueOf(dto.getDataFine()));
+        temp.put("nome utente", utenteHttp.getNome());
+        temp.put("email", utenteHttp.getEmail());
+        emitter.send(message);
+
     }
 
 }

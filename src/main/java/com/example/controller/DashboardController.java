@@ -78,11 +78,11 @@ public class DashboardController {
     @GET
     @Path("/")
     @Authenticated
-    public Uni<List<PrenotazioneDTO>> getDashboard(
+    public Uni<PageResponse<PrenotazioneDTO>> getDashboard(
             @QueryParam("userKey") String userKey,
             @QueryParam("page") @DefaultValue("0") Integer page,
             @QueryParam("size") @DefaultValue("5") Integer size) {
-        return prenotazioneService.getAllPrenotazioniWithPaging(userKey, page, size);
+        return prenotazioneService.getPrenotazioniWithPaging(userKey, page, size);
     }
 
     /*
@@ -124,10 +124,10 @@ public class DashboardController {
     @GET
     @Path("/utenti")
     @RolesAllowed("ROLE_manager")
-    public Uni<List<UtenteDTO>> getUtenti(
+    public Uni<PageResponse<UtenteDTO>> getUtenti(
             @QueryParam("page") @DefaultValue("0") Integer page,
             @QueryParam("size") @DefaultValue("5") Integer size) {
-        return utenteService.getAllUtenti(page, size);
+        return utenteService.getUtentiPaged(page, size);
     }
 
     @PUT

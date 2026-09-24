@@ -34,6 +34,6 @@ public class Sede {
     private String indirizzo;
 
     @JsonManagedReference
-    @OneToMany(cascade = CascadeType.ALL, mappedBy = "sede")
+    @OneToMany(cascade = CascadeType.ALL, mappedBy = "sede", fetch = FetchType.EAGER)
     private List<Stanza> listStanze;
 }
