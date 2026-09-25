@@ -9,6 +9,7 @@ import com.example.service.SedeService;
 import com.example.service.UtenteService;
 import io.quarkus.security.Authenticated;
 import io.smallrye.mutiny.Uni;
+import jakarta.annotation.Nullable;
 import jakarta.annotation.security.PermitAll;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
@@ -85,29 +86,29 @@ public class DashboardController {
         return prenotazioneService.getPrenotazioniWithPaging(userKey, page, size);
     }
 
-    /*
+
     @POST
     @Path("/searchPrenotazioni")
-    public Uni<List<PrenotazioneDTO>> searchPrenotazioni(
+    public Uni<PageResponse<PrenotazioneDTO>> searchPrenotazioni(
             @QueryParam("page") @DefaultValue("0") Integer page,
             @QueryParam("size") @DefaultValue("5") Integer size,
-            PrenotazioniFiltro filtro) {
-        return null;
+            @Nullable PrenotazioniFiltro filtro) {
+        return prenotazioneService.getAllPrenotazioniByFilter(filtro, page, size);
     }
 
 
 
     @POST
     @Path("/searchPrenotazioniUtente")
-    public Page<PrenotazioneDTO> searchPrenotazioniUtente(
+    public Uni<PageResponse<PrenotazioneDTO>> searchPrenotazioniUtente(
             @QueryParam("userKey") String userKey,
             @QueryParam("page") @DefaultValue("0") Integer page,
             @QueryParam("size") @DefaultValue("5") Integer size,
             PrenotazioniFiltro filtro) {
-        return null;
+        return prenotazioneService.getUtentePrenotazioniByFilter(userKey, filtro, page, size);
     }
 
-     */
+
 
 
     @GET

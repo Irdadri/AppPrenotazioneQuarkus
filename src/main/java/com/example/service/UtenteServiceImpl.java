@@ -15,6 +15,7 @@ import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.NotFoundException;
+import lombok.extern.java.Log;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.modelmapper.ModelMapper;
 
@@ -24,6 +25,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
+@Log
 public class UtenteServiceImpl implements UtenteService{
     @Inject
     public UtenteRepository repository;

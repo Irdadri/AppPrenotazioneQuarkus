@@ -19,6 +19,7 @@ import io.smallrye.reactive.messaging.annotations.Emitter;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.NotFoundException;
+import jakarta.ws.rs.WebApplicationException;
 import org.eclipse.microprofile.rest.client.inject.RestClient;
 import org.jboss.resteasy.reactive.ResponseStatus;
 import org.modelmapper.ModelMapper;
@@ -185,102 +186,224 @@ public class PrenotazioneServiceImpl implements PrenotazioneService {
                 );
     }
 
-    @Override
-    public Uni<List<PrenotazioneDTO>> getAllPrenotazioniByFilter(PrenotazioniFiltro prenotazioniFiltro, Pageable pageable) {
-        return null;
-    }
+    private Uni<PageResponse<PrenotazioneDTO>> createEmptyPageResponse(
+            int page,
+            int size) {
 
-    @Override
-    public Uni<List<PrenotazioneDTO>> getUtentePrenotazioniByFilter(String userKey, PrenotazioniFiltro prenotazioniFiltro, Pageable pageable) {
-        return null;
-    }
-
-    @WithTransaction
-    @Override
-    public Uni<PrenotazioneDTO> insertPrenotazione(PrenotazioneRequest request, String userKey) {
-        return utenteRepository.findUtenteByUserKey(userKey)
-                .onItem().ifNull().failWith(() -> new IllegalArgumentException("Utente non trovato"))
-                .chain(utente -> postazioneRepository.findById(Long.parseLong(request.getNPostazione()))
-                        .onItem().ifNull().failWith(() -> new IllegalArgumentException("Postazione non trovata"))
-                        .onItem().transform(postazione -> {
-                            return Prenotazione.builder()
-                                    .dataInizio(request.getDataInizio())
-                                    .stato("prenotato")
-                                    .postazione(postazione)
-                                    .utente(utente)
-                                    .dataFine(request.getDataInizio())
-                                    .dataCreazione(LocalDateTime.now())
-                                    .build();
-                        })
+        return Uni.createFrom().item(
+                new PageResponse<>(
+                        List.of(),
+                        false,  // hasNext
+                        page > 0, // hasPrevious
+                        0L,      // totalElements
+                        0,       // totalPages
+                        page,
+                        size
                 )
-                .chain(repository::persist)
-                .chain(prenotazioneSalvata ->
-                        client.getCurrentUtente(userKey)
-                                .map(utenteHttp -> {
-                                    PrenotazioneDTO dto = modelMapper.map(prenotazioneSalvata, PrenotazioneDTO.class);
-                                    kafkaSend(dto, utenteHttp);
-                                    return dto;
-                                })
-                );
+        );
     }
 
-    @WithSession
     @Override
-    public Uni<PrenotazioneDTO> getPrenotazioneById(int id) {
-        return repository.findById((long) id)
-                .onItem().ifNull().failWith(new IllegalArgumentException("prenotazione non trovata"))
-                .chain(prenotazione ->
-                        client.getCurrentUtente(prenotazione.getUtente().getUserKey())
-                                .map(utenteHttp -> {
-                                    PrenotazioneDTO dto = modelMapper.map(prenotazione, PrenotazioneDTO.class);
+    @WithSession
+    public Uni<PageResponse<PrenotazioneDTO>> getAllPrenotazioniByFilter(PrenotazioniFiltro prenotazioniFiltro, int page, int size) {
+
+        if (prenotazioniFiltro.getEmail() == null || prenotazioniFiltro.getEmail().isEmpty()) {
+
+            PanacheQuery<Prenotazione> query =
+                    repository.findByFilter(
+                            prenotazioniFiltro,
+                            null,
+                            page,
+                            size
+                    );
+
+            return query.list()
+                    .onItem().transformToMulti(Multi.createFrom()::iterable)
+                    .onItem().transformToUniAndMerge(prenotazione ->
+                            client.getCurrentUtente(prenotazione.getUtente().getUserKey())
+                                    .onItem().transform(utenteHttp -> {
+                                        PrenotazioneDTO dto =
+                                                modelMapper.map(
+                                                        prenotazione,
+                                                        PrenotazioneDTO.class
+                                                );
+                                        dto.setNomeUtente(utenteHttp.getNome());
+                                        dto.setCognomeUtente(utenteHttp.getCognome());
+
+                                        return dto;
+                                    })
+
+                    )
+                    .collect()
+                    .asList()
+                    .chain(listaPrenotazione ->
+                            createPageResponse(
+                                    listaPrenotazione,
+                                    query,
+                                    page,
+                                    size
+                            )
+                    );
+        } else {
+            return client.getHttpUser(prenotazioniFiltro.getEmail())
+                    .chain(utenteHttp -> {
+                        if (utenteHttp == null) {
+                            return createEmptyPageResponse(page, size);
+                        }
+
+                        PanacheQuery<Prenotazione> query = repository.findByFilter(prenotazioniFiltro, utenteHttp.getUserKey(), page, size);
+
+                        return query.list()
+                                .onItem().transformToMulti(Multi.createFrom()::iterable)
+                                .onItem().transform(prenotazione -> {
+                                    PrenotazioneDTO dto =
+                                            modelMapper.map(
+                                                    prenotazione,
+                                                    PrenotazioneDTO.class
+                                            );
+
                                     dto.setNomeUtente(utenteHttp.getNome());
                                     dto.setCognomeUtente(utenteHttp.getCognome());
                                     return dto;
                                 })
+                                .collect()
+                                .asList()
+                                .chain(listaPrenotazione -> createPageResponse(listaPrenotazione, query, page, size));
+                    });
+        }
+    }
+
+    @Override
+    @WithSession
+    public Uni<PageResponse<PrenotazioneDTO>> getUtentePrenotazioniByFilter(
+            String userKey,
+            PrenotazioniFiltro prenotazioniFiltro,
+            int page,
+            int size) {
+
+        PanacheQuery<Prenotazione> query =
+                repository.findByFilter(
+                        prenotazioniFiltro,
+                        userKey,
+                        page,
+                        size
+                );
+
+        return query.list()
+                .onItem()
+                .transformToMulti(Multi.createFrom()::iterable)
+
+                .onItem()
+                .transform(prenotazione -> {
+
+                    PrenotazioneDTO dto =
+                            modelMapper.map(
+                                    prenotazione,
+                                    PrenotazioneDTO.class
+                            );
+
+                    return dto;
+                })
+
+                .collect()
+                .asList()
+
+                .chain(listaPrenotazione ->
+                        createPageResponse(
+                                listaPrenotazione,
+                                query,
+                                page,
+                                size
+                        )
                 );
     }
 
-    @WithTransaction
-    @Override
-    public Uni<PrenotazioneDTO> aggiornaPrenotazione(PrenotazioneRequest prenotazioneRequest, int id) {
-        return repository.findById((long) id)
-                .onItem().ifNull().failWith(new IllegalArgumentException("prenotazione non trovata"))
-                .chain(prenotazione -> postazioneRepository.findById(Integer.parseInt(prenotazioneRequest.getNPostazione()))
-                        .map(postazione -> {
-                            prenotazione.setPostazione(postazione);
-                            if (prenotazioneRequest.getDataInizio() != null) {
-                                prenotazione.setDataInizio(prenotazioneRequest.getDataInizio());
-                            }
-                            return prenotazione;
-                        }))
-                .chain(repository::persist)
-                .map(prenotazione -> modelMapper.map(prenotazione, PrenotazioneDTO.class));
+        @WithTransaction
+        @Override
+        public Uni<PrenotazioneDTO> insertPrenotazione (PrenotazioneRequest request, String userKey){
+            return utenteRepository.findUtenteByUserKey(userKey)
+                    .onItem().ifNull().failWith(() -> new IllegalArgumentException("Utente non trovato"))
+                    .chain(utente -> postazioneRepository.findById(Long.parseLong(request.getNPostazione()))
+                            .onItem().ifNull().failWith(() -> new IllegalArgumentException("Postazione non trovata"))
+                            .onItem().transform(postazione -> {
+                                return Prenotazione.builder()
+                                        .dataInizio(request.getDataInizio())
+                                        .stato("prenotato")
+                                        .postazione(postazione)
+                                        .utente(utente)
+                                        .dataFine(request.getDataInizio())
+                                        .dataCreazione(LocalDateTime.now())
+                                        .build();
+                            })
+                    )
+                    .chain(repository::persist)
+                    .chain(prenotazioneSalvata ->
+                            client.getCurrentUtente(userKey)
+                                    .map(utenteHttp -> {
+                                        PrenotazioneDTO dto = modelMapper.map(prenotazioneSalvata, PrenotazioneDTO.class);
+                                        kafkaSend(dto, utenteHttp);
+                                        return dto;
+                                    })
+                    );
+        }
+
+        @WithSession
+        @Override
+        public Uni<PrenotazioneDTO> getPrenotazioneById ( int id){
+            return repository.findById((long) id)
+                    .onItem().ifNull().failWith(new IllegalArgumentException("prenotazione non trovata"))
+                    .chain(prenotazione ->
+                            client.getCurrentUtente(prenotazione.getUtente().getUserKey())
+                                    .map(utenteHttp -> {
+                                        PrenotazioneDTO dto = modelMapper.map(prenotazione, PrenotazioneDTO.class);
+                                        dto.setNomeUtente(utenteHttp.getNome());
+                                        dto.setCognomeUtente(utenteHttp.getCognome());
+                                        return dto;
+                                    })
+                    );
+        }
+
+        @WithTransaction
+        @Override
+        public Uni<PrenotazioneDTO> aggiornaPrenotazione (PrenotazioneRequest prenotazioneRequest,int id){
+            return repository.findById((long) id)
+                    .onItem().ifNull().failWith(new IllegalArgumentException("prenotazione non trovata"))
+                    .chain(prenotazione -> postazioneRepository.findById(Integer.parseInt(prenotazioneRequest.getNPostazione()))
+                            .map(postazione -> {
+                                prenotazione.setPostazione(postazione);
+                                if (prenotazioneRequest.getDataInizio() != null) {
+                                    prenotazione.setDataInizio(prenotazioneRequest.getDataInizio());
+                                }
+                                return prenotazione;
+                            }))
+                    .chain(repository::persist)
+                    .map(prenotazione -> modelMapper.map(prenotazione, PrenotazioneDTO.class));
+
+        }
+
+        @WithTransaction
+        @Override
+        public Uni<Void> deletePrenotazioneById ( int id){
+            return repository.findById((long) id)
+                    .onItem().ifNull().failWith(new NotFoundException("prenotazione non trovata"))
+                    .chain(repository::delete);
+        }
+
+
+        public void kafkaSend (PrenotazioneDTO dto, UtenteHttp utenteHttp){
+            KafkaMessage message = new KafkaMessage();
+            message.setTipoNotifica("EMAIL");
+            Map<String, String> temp = message.getProperties();
+            temp.put("citta", dto.getCitta());
+            temp.put("indirizzo", dto.getIndirizzo());
+            temp.put("nStanza", dto.getNStanza());
+            temp.put("nPostazione", String.valueOf(dto.getNPostazione()));
+            temp.put("dataInizio", String.valueOf(dto.getDataInizio()));
+            temp.put("dataFine", String.valueOf(dto.getDataFine()));
+            temp.put("nome utente", utenteHttp.getNome());
+            temp.put("email", utenteHttp.getEmail());
+            emitter.send(message);
+
+        }
 
     }
-
-    @WithTransaction
-    @Override
-    public Uni<Void> deletePrenotazioneById(int id) {
-        return repository.findById((long) id)
-                .onItem().ifNull().failWith(new NotFoundException("prenotazione non trovata"))
-                .chain(repository::delete);
-    }
-
-
-    public void kafkaSend(PrenotazioneDTO dto, UtenteHttp utenteHttp) {
-        KafkaMessage message = new KafkaMessage();
-        message.setTipoNotifica("EMAIL");
-        Map<String, String> temp = message.getProperties();
-        temp.put("citta", dto.getCitta());
-        temp.put("indirizzo", dto.getIndirizzo());
-        temp.put("nStanza", dto.getNStanza());
-        temp.put("nPostazione", String.valueOf(dto.getNPostazione()));
-        temp.put("dataInizio", String.valueOf(dto.getDataInizio()));
-        temp.put("dataFine", String.valueOf(dto.getDataFine()));
-        temp.put("nome utente", utenteHttp.getNome());
-        temp.put("email", utenteHttp.getEmail());
-        emitter.send(message);
-
-    }
-
-}

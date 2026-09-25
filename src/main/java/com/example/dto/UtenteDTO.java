@@ -15,7 +15,7 @@ import lombok.Setter;
 //modello per lista utenti
 public class UtenteDTO {
 
-    private int id;
+    private String userKey;
 
     @NotBlank
     @Size(min = 1, max = 45)

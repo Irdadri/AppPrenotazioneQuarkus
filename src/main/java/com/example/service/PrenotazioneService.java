@@ -21,10 +21,10 @@ public interface PrenotazioneService {
     Uni<PageResponse<PrenotazioneDTO>> getPrenotazioniWithPaging(String userKey, int page, int size);
 
 
-    Uni<List<PrenotazioneDTO>> getAllPrenotazioniByFilter(PrenotazioniFiltro prenotazioniFiltro, Pageable pageable);
+    Uni<PageResponse<PrenotazioneDTO>>getAllPrenotazioniByFilter(PrenotazioniFiltro prenotazioniFiltro, int page, int size);
 
 
-    Uni<List<PrenotazioneDTO>> getUtentePrenotazioniByFilter(String userKey, PrenotazioniFiltro prenotazioniFiltro, Pageable pageable);
+    Uni<PageResponse<PrenotazioneDTO>> getUtentePrenotazioniByFilter(String userKey, PrenotazioniFiltro prenotazioniFiltro, int page, int size);
 
     Uni<PrenotazioneDTO> insertPrenotazione(PrenotazioneRequest request, String userKey);
 

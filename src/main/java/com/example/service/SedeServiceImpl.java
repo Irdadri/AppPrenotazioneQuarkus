@@ -17,6 +17,6 @@ public class SedeServiceImpl implements SedeService{
     @Override
     @WithSession
     public Uni<List<Sede>> getAllSedi() {
-        return repository.findAllSede();
+        return repository.findAll().list();
     }
 }
