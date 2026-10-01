@@ -89,6 +89,7 @@ public class DashboardController {
 
     @POST
     @Path("/searchPrenotazioni")
+    @Authenticated
     public Uni<PageResponse<PrenotazioneDTO>> searchPrenotazioni(
             @QueryParam("page") @DefaultValue("0") Integer page,
             @QueryParam("size") @DefaultValue("5") Integer size,
@@ -100,6 +101,7 @@ public class DashboardController {
 
     @POST
     @Path("/searchPrenotazioniUtente")
+    @Authenticated
     public Uni<PageResponse<PrenotazioneDTO>> searchPrenotazioniUtente(
             @QueryParam("userKey") String userKey,
             @QueryParam("page") @DefaultValue("0") Integer page,
